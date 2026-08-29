@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChunkIT Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='4' width='13' height='13' rx='2' fill='%2322c55e'/%3E%3Crect x='18' y='7' width='9' height='9' rx='2' fill='%2334d975'/%3E%3Crect x='24' y='20' width='6' height='6' rx='1.5' fill='%234ade80'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #050807;
+    --panel: #0b100d;
+    --panel-edge: #16241b;
+    --green: #22c55e;
+    --green-bright: #4ade80;
+    --green-dim: #14532d;
+    --teal: #2dd4bf;
+    --white: #f5f5f5;
+    --muted: #7a8a80;
+    --red: #f87171;
+    --yellow: #facc15;
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34,197,94,.10), transparent);
+    color: var(--white);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+    padding: 28px clamp(16px, 4vw, 48px) 64px;
+  }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; }
+  .cubes { display: flex; gap: 5px; align-items: center; }
+  .cube { width: 16px; height: 16px; background: var(--green); border-radius: 3px; box-shadow: 0 0 14px rgba(34,197,94,.55); }
+  .cube:nth-child(2) { width: 12px; height: 12px; opacity: .85; }
+  .cube:nth-child(3) { width: 8px; height: 8px; opacity: .7; }
+  h1 { font-size: 30px; font-weight: 800; letter-spacing: 1px; }
+  h1 .chunk { color: var(--green); }
+  h1 .it { color: var(--white); }
+  .tagline { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 12px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  label { color: var(--muted); font-size: 12px; }
+  input[type=number], input[type=text] {
+    background: #060a08; color: var(--green-bright); border: 1px solid var(--panel-edge);
+    border-radius: 8px; padding: 8px 10px; font-family: var(--mono); font-size: 13px; width: 110px;
+  }
+  input[type=text] { width: 170px; }
+  button {
+    background: var(--green); color: #04120a; font-weight: 700; border: none;
+    border-radius: 8px; padding: 9px 16px; cursor: pointer; font-size: 13px;
+    transition: filter .15s, transform .05s;
+  }
+  button:hover { filter: brightness(1.15); }
+  button:active { transform: translateY(1px); }
+  button.secondary { background: transparent; color: var(--green-bright); border: 1px solid var(--green-dim); }
+  button:disabled { opacity: .45; cursor: wait; }
+  .toggle { display: flex; align-items: center; gap: 6px; color: var(--white); font-size: 13px; }
+  textarea {
+    width: 100%; min-height: 130px; background: #060a08; color: #b8c7bd;
+    border: 1px solid var(--panel-edge); border-radius: 12px; padding: 12px;
+    font-family: var(--mono); font-size: 12px; resize: vertical; margin-bottom: 14px;
+  }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    border-radius: 12px; padding: 16px 18px; min-width: 0;
+  }
+  .panel h2 {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 2px;
+    color: var(--green); margin-bottom: 12px; font-weight: 700;
+  }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 13px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { font-family: var(--mono); color: var(--white); text-align: right; word-break: break-all; }
+  .big { font-size: 40px; font-weight: 800; color: var(--green-bright); font-family: var(--mono); line-height: 1.1; }
+  .big small { font-size: 15px; color: var(--muted); font-weight: 400; }
+  .bar { height: 10px; border-radius: 5px; background: #17251c; overflow: hidden; margin: 10px 0 4px; }
+  .bar .fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green-bright)); border-radius: 5px; transition: width .5s; }
+  .lat { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 8px 0 4px; background: #17251c; }
+  .lat div { height: 100%; }
+  .lat .l-day { background: var(--teal); }
+  .lat .l-nos { background: var(--green-bright); }
+  .lat .l-llm { background: var(--green-dim); }
+  .legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; font-family: var(--mono); }
+  .badge.ok { background: rgba(34,197,94,.15); color: var(--green-bright); border: 1px solid var(--green-dim); }
+  .badge.mid { background: rgba(45,212,191,.12); color: var(--teal); border: 1px solid rgba(45,212,191,.3); }
+  .badge.warn { background: rgba(250,204,21,.12); color: var(--yellow); border: 1px solid rgba(250,204,21,.3); }
+  .badge.bad { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; font-family: var(--mono); }
+  th { text-align: left; color: var(--muted); font-weight: 400; padding: 4px 6px; border-bottom: 1px solid var(--panel-edge); }
+  td { padding: 4px 6px; border-bottom: 1px solid #0e1712; color: var(--white); }
+  .scorebar { display: inline-block; height: 7px; background: var(--green); border-radius: 3px; vertical-align: middle; box-shadow: 0 0 6px rgba(34,197,94,.4); }
+  .answer { font-size: 13px; color: #cfe0d5; white-space: pre-wrap; max-height: 220px; overflow-y: auto; line-height: 1.5; }
+  .answer .cursor { display: inline-block; width: 7px; height: 14px; background: var(--green-bright); animation: blink .8s infinite; vertical-align: text-bottom; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .empty { color: var(--muted); font-size: 13px; font-style: italic; }
+  .status { font-family: var(--mono); font-size: 12px; color: var(--muted); margin: 6px 2px 14px; min-height: 16px; }
+  .status.err { color: var(--red); }
+  .tablewrap { overflow-x: auto; max-height: 260px; overflow-y: auto; }
+  .compare td:first-child { color: var(--muted); }
+  .compare-answers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+  .compare-answer {
+    min-width: 0;
+    background: #080d0a;
+    border: 1px solid var(--panel-edge);
+    border-radius: 12px;
+    padding: 12px;
+  }
+  .compare-answer .answer { max-height: 260px; }
+  @media (max-width: 900px) {
+    .compare-answers { grid-template-columns: 1fr; }
+  }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .tile { background: #080d0a; border: 1px solid var(--panel-edge); border-radius: 10px; padding: 12px 14px; }
+  .tile .tl { font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+  .tile .tv { font-family: var(--mono); font-weight: 800; font-size: 26px; color: var(--green-bright); font-variant-numeric: tabular-nums; }
+  .tile .ts { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .spark { display: block; width: 100%; height: 48px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="cubes"><div class="cube"></div><div class="cube"></div><div class="cube"></div></div>
+  <h1><span class="chunk">CHUNK</span><span class="it">IT</span></h1>
+</header>
+<div class="tagline">Context-compression gateway — compress, score, budget, retrieve</div>
+
+<div class="controls">
+  <label>Gateway <input type="text" id="gateway" placeholder="(same origin)" value=""></label>
+  <label>Target tokens <input type="number" id="target" value="400" min="1"></label>
+  <label>Session <input type="text" id="session" placeholder="(per request)" style="width:120px"></label>
+  <span class="toggle"><input type="checkbox" id="compression" checked> compression</span>
+  <span class="toggle"><input type="checkbox" id="streaming"> stream</span>
+  <button class="secondary" id="loadSample">Load sample trace</button>
+  <button id="send">Send request</button>
+  <button class="secondary" id="compare">Run baseline compare</button>
+</div>
+<div class="status" id="status">Ready. Load the sample trace or paste an OpenAI-style messages array below.</div>
+<textarea id="messages" spellcheck="false" placeholder='[{"role":"user","content":"..."}]'></textarea>
+
+<div class="panel" style="margin-bottom: 14px;">
+  <h2>Session totals &mdash; since gateway start</h2>
+  <div class="tiles" id="tiles"><div class="empty">No traffic yet this session.</div></div>
+  <div id="spark" style="margin-top: 10px;"></div>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Request summary</h2>
+    <div id="summary" class="empty">No request sent yet.</div>
+  </div>
+  <div class="panel">
+    <h2>Token savings</h2>
+    <div id="savings" class="empty">&mdash;</div>
+  </div>
+  <div class="panel">
+    <h2>Latency</h2>
+    <div id="latency" class="empty">&mdash;</div>
+  </div>
+  <div class="panel">
+    <h2>Reliability</h2>
+    <div id="reliability" class="empty">&mdash;</div>
+  </div>
+  <div class="panel" style="grid-column: 1 / -1;">
+    <h2>Live traffic &mdash; agents passing through the gateway</h2>
+    <div id="live" class="empty">Waiting for traffic&hellip; point any agent (Claude Code via <span style="font-family:var(--mono)">ANTHROPIC_BASE_URL</span>, OpenAI SDK via <span style="font-family:var(--mono)">base_url</span>) at this gateway and requests appear here automatically.</div>
+  </div>
+  <div class="panel" style="grid-column: 1 / -1;">
+    <h2>Compression provenance &mdash; per block</h2>
+    <div id="provenance" class="empty">Detected type, compressor, and reduction per block appear here.</div>
+  </div>
+  <div class="panel" style="grid-column: 1 / -1;">
+    <h2>Context decisions &mdash; keep &middot; compact &middot; omit</h2>
+    <div id="decisions" class="empty">Relevance scores and selection decisions appear here.</div>
+  </div>
+  <div class="panel" style="grid-column: 1 / -1;">
+    <h2>Quality &mdash; model answer &amp; baseline compare</h2>
+    <div id="quality" class="empty">&mdash;</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const answerOf = (data) => (((data.choices || [])[0] || {}).message || {}).content ?? data.content ?? "";
+const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+const SAMPLE_TRACE = [
+  {
+    "role": "system",
+    "content": "You are a senior engineer helping on a Python payments service. Be precise and concise."
+  },
+  {
+    "role": "user",
+    "content": "I'm debugging our checkout service. Constraint: you must not change the public API of PaymentClient — other teams depend on it."
+  },
+  {
+    "role": "assistant",
+    "content": "Understood — I'll keep the PaymentClient public API frozen while we investigate the checkout failures."
+  },
+  {
+    "role": "user",
+    "content": "Log output:\n[build] webpack 5.99.2 compiled successfully in 3841 ms\n[build] css-loader: 214 modules transformed, 0 warnings\n[build] postcss: autoprefixer applied to 87 rules\n[build] terser: minified 41 chunks (main, vendor, runtime, 38 async)\n[build] assets emitted: main.css 182 KiB, vendor.css 96 KiB, main.js 412 KiB, vendor.js 1.2 MiB\n[build] asset optimization: gzip main.js 128 KiB, brotli main.js 104 KiB\n[build] copied 63 static assets to /dist/static\n[build] type-check: tsc --noEmit completed with 0 errors\n[build] lint: eslint 0 errors, 4 warnings (unused vars in legacy/checkout_v1.tsx)\n[build] done. build hash: 9f2c11ab\n[build] no action required"
+  },
+  {
+    "role": "user",
+    "content": "Log output:\n[build] webpack 5.99.2 compiled successfully in 3722 ms\n[build] css-loader: 214 modules transformed, 0 warnings\n[build] postcss: autoprefixer applied to 87 rules\n[build] terser: minified 41 chunks (main, vendor, runtime, 38 async)\n[build] assets emitted: main.css 182 KiB, vendor.css 96 KiB, main.js 412 KiB, vendor.js 1.2 MiB\n[build] asset optimization: gzip main.js 128 KiB, brotli main.js 104 KiB\n[build] copied 63 static assets to /dist/static\n[build] type-check: tsc --noEmit completed with 0 errors\n[build] lint: eslint 0 errors, 4 warnings (unused vars in legacy/checkout_v1.tsx)\n[build] done. build hash: 9f2c11ab\n[build] no action required"
+  },
+  {
+    "role": "assistant",
+    "content": "Build output looks clean across both runs. The frontend bundle is not related to the failure — moving on to the backend logs."
+  },
+  {
+    "role": "user",
+    "content": "Log output:\nERROR payments.retry: RetryManager exhausted 3 attempts for POST /v1/charge\nTraceback (most recent call last):\n  File \"payments/retry.py\", line 88, in _attempt\n    response = await self._client.post(url, json=payload, timeout=self.timeout)\n  File \"httpx/_client.py\", line 1848, in post\n    return await self.request(\"POST\", url, ...)\n  File \"httpx/_client.py\", line 1533, in request\n    return await self.send(request, ...)\nhttpx.ReadTimeout: timed out after 2.0s\nWARNING payments.retry: backoff schedule [0.5, 1.0, 2.0] exhausted, giving up\nERROR payments.charge: charge attempt failed for order ord_8812, surfacing 502 to caller\nINFO payments.charge: auth token refresh succeeded 40ms before the failing attempt"
+  },
+  {
+    "role": "user",
+    "content": "Log output:\n{\"deploy\": \"ok\", \"service\": \"checkout\", \"replicas\": 3, \"image\": \"checkout:2.14.1\", \"region\": \"ap-southeast-1\", \"strategy\": \"rolling\", \"maxSurge\": 1, \"maxUnavailable\": 0, \"probes\": {\"liveness\": \"/healthz\", \"readiness\": \"/readyz\"}, \"configVersion\": \"cfg-2210\", \"secretsVersion\": \"sec-118\", \"notes\": \"routine nightly redeploy, no config changes\"}"
+  },
+  {
+    "role": "user",
+    "content": "Log output:\n[build] webpack 5.99.2 compiled successfully in 3695 ms\n[build] css-loader: 214 modules transformed, 0 warnings\n[build] postcss: autoprefixer applied to 87 rules\n[build] terser: minified 41 chunks (main, vendor, runtime, 38 async)\n[build] assets emitted: main.css 182 KiB, vendor.css 96 KiB, main.js 412 KiB, vendor.js 1.2 MiB\n[build] asset optimization: gzip main.js 128 KiB, brotli main.js 104 KiB\n[build] copied 63 static assets to /dist/static\n[build] type-check: tsc --noEmit completed with 0 errors\n[build] lint: eslint 0 errors, 4 warnings (unused vars in legacy/checkout_v1.tsx)\n[build] done. build hash: 9f2c11ab\n[build] no action required"
+  },
+  {
+    "role": "user",
+    "content": "Log output:\n[build] webpack 5.99.2 compiled successfully in 3789 ms\n[build] css-loader: 214 modules transformed, 0 warnings\n[build] postcss: autoprefixer applied to 87 rules\n[build] terser: minified 41 chunks (main, vendor, runtime, 38 async)\n[build] assets emitted: main.css 182 KiB, vendor.css 96 KiB, main.js 412 KiB, vendor.js 1.2 MiB\n[build] asset optimization: gzip main.js 128 KiB, brotli main.js 104 KiB\n[build] copied 63 static assets to /dist/static\n[build] type-check: tsc --noEmit completed with 0 errors\n[build] lint: eslint 0 errors, 4 warnings (unused vars in legacy/checkout_v1.tsx)\n[build] done. build hash: 9f2c11ab\n[build] no action required"
+  },
+  {
+    "role": "assistant",
+    "content": "The RetryManager timeout is the real signal: three attempts against /v1/charge, each timing out at 2.0s, then the backoff schedule is exhausted and the caller sees a 502. The auth token refresh right before the failing attempt is suspicious."
+  },
+  {
+    "role": "user",
+    "content": "Also for context, marketing wants the new landing page shipped Friday, the standup moved to 10:30, and facilities is repainting level 3 so we're on level 5 next week."
+  },
+  {
+    "role": "assistant",
+    "content": "Noted — none of that affects the checkout inquiry. Focusing on the retry path in payments/retry.py and the auth refresh timing."
+  },
+  {
+    "role": "user",
+    "content": "Log output:\n$ pytest tests/payments -q\n....F..\nFAILED tests/payments/test_retry.py::test_charge_retries_on_timeout - httpx.ReadTimeout\nAssertionError in follow-up: expected Authorization header to be refreshed between attempts, got the same bearer token on attempt 2 and 3\n1 failed, 6 passed in 4.21s"
+  },
+  {
+    "role": "user",
+    "content": "Fix the authentication retry timeout bug in the charge flow without changing the public API."
+  }
+];
+
+function fmt(n) { return typeof n === "number" ? n.toLocaleString() : String(n); }
+function kv(k, v) { return `<div class="kv"><span class="k">${k}</span><span class="v">${v}</span></div>`; }
+function setStatus(msg, isErr) {
+  const el = $("status");
+  el.textContent = msg;
+  el.className = "status" + (isErr ? " err" : "");
+}
+
+$("loadSample").onclick = () => {
+  $("messages").value = JSON.stringify(SAMPLE_TRACE, null, 2);
+  setStatus("Sample coding-agent trace loaded: 15 messages, one buried error, repeated build chatter, an early hard constraint.");
+};
+
+function readMessages() {
+  const raw = $("messages").value.trim();
+  if (!raw) throw new Error("Paste a messages array or load the sample trace first.");
+  const parsed = JSON.parse(raw);
+  if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("messages must be a non-empty array");
+  return parsed;
+}
+
+function requestBody(compressionEnabled, stream) {
+  const body = {
+    messages: readMessages(),
+    target_tokens: parseInt($("target").value, 10) || 400,
+    compression_enabled: compressionEnabled,
+  };
+  const session = $("session").value.trim();
+  if (session) body.session_id = session;
+  if (stream) body.stream = true;
+  return body;
+}
+
+function gatewayBase() { return $("gateway").value.trim().replace(/\/+$/, ""); }
+
+async function callGateway(compressionEnabled) {
+  const resp = await fetch(`${gatewayBase()}/v1/chat/completions`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(requestBody(compressionEnabled, false)),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error(`gateway ${resp.status}: ${JSON.stringify(data.detail || data)}`);
+  return data;
+}
+
+async function callGatewayStreaming(compressionEnabled, onDebug, onDelta) {
+  const resp = await fetch(`${gatewayBase()}/v1/chat/completions`, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(requestBody(compressionEnabled, true)),
+  });
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    throw new Error(`gateway ${resp.status}: ${JSON.stringify(data.detail || data)}`);
+  }
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "", content = "", debug = null;
+  for (;;) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    let idx;
+    while ((idx = buffer.indexOf("\n\n")) >= 0) {
+      const event = buffer.slice(0, idx); buffer = buffer.slice(idx + 2);
+      if (event.startsWith(": chunkit-debug ")) {
+        debug = JSON.parse(event.slice(": chunkit-debug ".length));
+        onDebug(debug);
+      } else if (event.startsWith("data: ")) {
+        const payload = event.slice(6).trim();
+        if (payload === "[DONE]") continue;
+        try {
+          const chunk = JSON.parse(payload);
+          if (chunk.error) throw new Error(chunk.error.message || "stream error");
+          const delta = (((chunk.choices || [])[0] || {}).delta || {}).content;
+          if (delta) { content += delta; onDelta(content); }
+        } catch (e) { if (e instanceof SyntaxError) continue; throw e; }
+      }
+    }
+  }
+  return {debug, content};
+}
+
+function sourceBadge(src) {
+  if (src === "nosana") return '<span class="badge ok">NOSANA</span>';
+  if (src === "fallback") return '<span class="badge warn">FALLBACK</span>';
+  if (src === "disabled") return '<span class="badge warn">PASSTHROUGH</span>';
+  return '<span class="badge bad">NONE</span>';
+}
+
+function renderDebug(d, usage) {
+  usage = usage || {};
+  $("summary").innerHTML =
+    kv("run_id", esc((d.run_id || "").slice(0, 13)) + "&hellip;") +
+    kv("session", esc(d.session_id === d.run_id ? "(per request)" : d.session_id || "")) +
+    kv("messages sent / original", `${fmt(d.sent)} / ${fmt(d.original)}`) +
+    kv("blocks kept / compacted / omitted", `${fmt(d.kept_blocks - d.compacted_blocks)} / ${fmt(d.compacted_blocks)} / ${fmt(d.omitted_blocks)}`) +
+    kv("target tokens", fmt(d.target_tokens)) +
+    kv("estimated (incl. markers)", fmt(d.estimated_tokens)) +
+    kv("score source", sourceBadge(d.score_source));
+
+  const pct = d.savings_percent || 0;
+  $("savings").innerHTML =
+    `<div class="big">${pct}%<small> saved</small></div>` +
+    `<div class="bar"><div class="fill" style="width:${Math.min(100, pct)}%"></div></div>` +
+    kv("original tokens (est.)", fmt(d.original_tokens)) +
+    kv("forwarded tokens (est.)", fmt(d.forwarded_tokens)) +
+    kv("tokens saved", fmt(d.tokens_saved)) +
+    kv("provider prompt tokens", fmt(usage.prompt_tokens ?? "&mdash;"));
+
+  const day = d.daytona_ms || 0, nos = d.nosana_ms || 0, llm = d.kimi_ms || 0;
+  const llmLabel = d.kimi_ms == null ? "n/a (streamed)" : `${fmt(llm)} ms`;
+  const total = Math.max(1, day + nos + llm);
+  $("latency").innerHTML =
+    `<div class="lat">
+       <div class="l-day" style="width:${(day / total * 100).toFixed(1)}%"></div>
+       <div class="l-nos" style="width:${(nos / total * 100).toFixed(1)}%"></div>
+       <div class="l-llm" style="width:${(llm / total * 100).toFixed(1)}%"></div>
+     </div>
+     <div class="legend">
+       <span><i style="background:var(--teal)"></i>daytona ${fmt(day)} ms</span>
+       <span><i style="background:var(--green-bright)"></i>nosana ${fmt(nos)} ms</span>
+       <span><i style="background:var(--green-dim)"></i>model ${llmLabel}</span>
+     </div>` +
+    kv("pipeline total", `${fmt(d.pipeline_ms)} ms`) +
+    kv("cached tokens", fmt(d.cached_tokens ?? "&mdash;"));
+
+  $("reliability").innerHTML =
+    kv("score source", sourceBadge(d.score_source)) +
+    kv("fallback reason", d.fallback_reason ? `<span class="badge warn">${esc(d.fallback_reason)}</span>` : "&mdash;") +
+    kv("fail-open", d.fail_open ? '<span class="badge bad">YES</span>' : '<span class="badge ok">no</span>') +
+    (d.fail_reason ? kv("fail reason", esc(d.fail_reason)) : "") +
+    kv("over budget", d.over_budget ? '<span class="badge warn">yes</span>' : '<span class="badge ok">no</span>') +
+    kv("retrieval calls", fmt(d.retrieval_count ?? 0));
+
+  const prov = (d.daytona_blocks || []).map(b => {
+    const reduction = b.reduction_percent || 0;
+    return `<tr><td>${esc(b.block_id)}</td><td>${esc(b.detected_content_type)}</td>
+      <td>${esc(b.compressor)}</td><td>${fmt(b.original_tokens)} &rarr; ${fmt(b.compressed_tokens)}</td>
+      <td><span class="scorebar" style="width:${Math.max(2, reduction)}px"></span> ${reduction}%</td>
+      <td>${b.cache_hit ? '<span class="badge mid">cache</span>' : esc(b.backend)}</td></tr>`;
+  }).join("");
+  $("provenance").innerHTML = prov
+    ? `<div class="tablewrap"><table><tr><th>block</th><th>type</th><th>compressor</th><th>tokens</th><th>reduction</th><th>via</th></tr>${prov}</table></div>`
+    : '<div class="empty">No compression report (passthrough or fail-open).</div>';
+
+  const compacted = new Set(d.compact_units || []);
+  const omitted = new Set(d.omitted_units || []);
+  const rows = (d.scored_units || []).map(u => {
+    const width = Math.max(2, Math.round(u.relevance * 90));
+    let state = u.pinned
+      ? '<span class="badge ok">pinned</span>'
+      : '<span class="badge ok">kept</span>';
+    if (omitted.has(u.unit_id)) state = '<span class="badge bad">omitted</span>';
+    else if (compacted.has(u.unit_id)) state = '<span class="badge mid">compacted</span>';
+    return `<tr><td>${esc(u.unit_id)}</td>
+      <td><span class="scorebar" style="width:${width}px"></span> ${u.relevance.toFixed(3)}</td>
+      <td>${u.final_priority.toFixed(3)}</td><td>${state}</td></tr>`;
+  }).join("");
+  $("decisions").innerHTML = rows
+    ? `<div class="tablewrap"><table><tr><th>unit</th><th>relevance</th><th>final priority</th><th>decision</th></tr>${rows}</table></div>`
+    : '<div class="empty">No scored units (passthrough or fail-open).</div>';
+}
+
+function render(data) {
+  lastRenderedRun = ((data.debug || {}).run_id || "").slice(0, 8);
+  renderDebug(data.debug || {}, data.usage);
+  $("quality").innerHTML =
+    `<div class="answer">${esc(answerOf(data) || "(no content)")}</div>`;
+}
+
+$("send").onclick = async () => {
+  const btn = $("send");
+  btn.disabled = true;
+  try {
+    if ($("streaming").checked) {
+      setStatus("Streaming through the gateway…");
+      $("quality").innerHTML = '<div class="answer"><span class="cursor"></span></div>';
+      const {debug, content} = await callGatewayStreaming(
+        $("compression").checked,
+        (d) => renderDebug(d),
+        (text) => { $("quality").innerHTML = `<div class="answer">${esc(text)}<span class="cursor"></span></div>`; },
+      );
+      $("quality").innerHTML = `<div class="answer">${esc(content || "(no content)")}</div>`;
+      setStatus(`Stream complete — score source: ${debug ? debug.score_source : "?"}, saved ${debug ? debug.savings_percent : "?"}% of context tokens.`);
+    } else {
+      setStatus("Sending request through the gateway…");
+      const data = await callGateway($("compression").checked);
+      render(data);
+      setStatus(`Done — score source: ${data.debug.score_source}, saved ${data.debug.savings_percent}% of context tokens.`);
+    }
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+$("compare").onclick = async () => {
+  const btn = $("compare");
+  btn.disabled = true;
+  try {
+    setStatus("Baseline compare: running full-context request…");
+    const full = await callGateway(false);
+    setStatus("Baseline compare: running compressed request…");
+    const compressed = await callGateway(true);
+    render(compressed);
+    const fu = full.usage || {}, cu = compressed.usage || {};
+    const fd = full.debug, cd = compressed.debug;
+    $("quality").innerHTML = `
+      <div class="tablewrap"><table class="compare">
+        <tr><th></th><th>full context</th><th>compressed</th></tr>
+        <tr><td>estimated tokens</td><td>${fmt(fd.forwarded_tokens)}</td><td>${fmt(cd.forwarded_tokens)}</td></tr>
+        <tr><td>provider prompt tokens</td><td>${fmt(fu.prompt_tokens ?? "—")}</td><td>${fmt(cu.prompt_tokens ?? "—")}</td></tr>
+        <tr><td>upstream latency</td><td>${fmt(fd.kimi_ms)} ms</td><td>${fmt(cd.kimi_ms)} ms</td></tr>
+        <tr><td>retrieval calls</td><td>${fmt(fd.retrieval_count)}</td><td>${fmt(cd.retrieval_count)}</td></tr>
+      </table></div>
+      <div class="compare-answers">
+        <div class="compare-answer">
+          <div class="kv"><span class="k">full-context answer</span></div>
+          <div class="answer">${esc(answerOf(full))}</div>
+        </div>
+        <div class="compare-answer">
+          <div class="kv"><span class="k">compressed answer</span></div>
+          <div class="answer">${esc(answerOf(compressed))}</div>
+        </div>
+      </div>`;
+    const promptSaved = (fu.prompt_tokens && cu.prompt_tokens)
+      ? ` Provider-measured prompt tokens: ${fmt(fu.prompt_tokens)} → ${fmt(cu.prompt_tokens)}.`
+      : "";
+    setStatus(`Baseline compare complete.${promptSaved}`);
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+};
+
+// ---- Session totals + sparkline (cumulative tokens saved over time)
+let lastRenderedRun = null;
+
+function sparkline(history) {
+  if (!history || history.length < 2) return "";
+  const w = 560, h = 48, pad = 3;
+  const t0 = history[0].ts, t1 = history[history.length - 1].ts;
+  const span = Math.max(1e-6, t1 - t0);
+  const max = Math.max(1, ...history.map(p => p.saved));
+  const pts = history.map(p => [
+    pad + (w - 2 * pad) * ((p.ts - t0) / span),
+    h - pad - (h - 2 * pad) * (p.saved / max),
+  ]);
+  const line = pts.map(p => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
+  const area = `${pad},${h - pad} ${line} ${(w - pad).toFixed(1)},${h - pad}`;
+  const [ex, ey] = pts[pts.length - 1];
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="Cumulative tokens saved this session">
+    <polygon points="${area}" fill="rgba(74,222,128,.14)"></polygon>
+    <polyline points="${line}" fill="none" stroke="var(--green-bright)" stroke-width="2" stroke-linejoin="round"></polyline>
+    <circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.5" fill="var(--green-bright)"></circle>
+  </svg>`;
+}
+
+function renderTotals(t) {
+  if (!t || !t.requests) return;
+  const failNote = t.fail_opens
+    ? ` &middot; <span style="color:var(--red)">${fmt(t.fail_opens)} fail-open</span>` : "";
+  $("tiles").innerHTML = `
+    <div class="tile"><div class="tl">Tokens saved</div><div class="tv">${fmt(t.tokens_saved)}</div>
+      <div class="ts">${t.savings_percent}% of ${fmt(t.original_tokens)} original (est.)</div></div>
+    <div class="tile"><div class="tl">Est. $ saved</div><div class="tv">$${(t.dollars_saved || 0).toFixed(2)}</div>
+      <div class="ts">at $${t.price_per_mtok}/MTok input list price</div></div>
+    <div class="tile"><div class="tl">Requests</div><div class="tv">${fmt(t.requests)}</div>
+      <div class="ts">${fmt(t.claude_requests)} claude &middot; ${fmt(t.openai_requests)} openai${failNote}</div></div>
+    <div class="tile"><div class="tl">Gateway overhead</div><div class="tv">${t.avg_pipeline_ms} ms</div>
+      <div class="ts">avg compression time per request</div></div>`;
+  $("spark").innerHTML = sparkline(t.history);
+}
+
+// ---- Live traffic: auto-refreshing feed of every request through the gateway
+function apiBadge(api) {
+  return api === "anthropic"
+    ? '<span class="badge mid">CLAUDE</span>'
+    : '<span class="badge ok">OPENAI</span>';
+}
+async function refreshLive() {
+  try {
+    const resp = await fetch(`${gatewayBase()}/activity`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderTotals(data.totals);
+    const requests = data.requests || [];
+    const rows = requests.slice(0, 20).map((r, i) => {
+      const t = new Date(r.ts * 1000).toLocaleTimeString();
+      const pct = r.savings_percent || 0;
+      const d = r.debug || {};
+      const compactN = (d.compact_units || []).length;
+      const omitN = (d.omitted_units || []).length;
+      const highlight = i === 0 ? ' style="color:var(--green-bright)"' : "";
+      return `<tr${highlight}><td>${esc(t)}</td><td>${apiBadge(r.api)}</td>
+        <td>${fmt(r.messages)}</td>
+        <td>${fmt(compactN)} / ${fmt(omitN)}</td>
+        <td><span class="scorebar" style="width:${Math.max(2, Math.min(90, pct))}px"></span> ${pct}% (${fmt(r.saved)} tok)</td>
+        <td>${r.fail_open ? '<span class="badge bad">fail-open</span>' : sourceBadge(r.score_source)}</td>
+        <td>${esc(r.session || "")}</td></tr>`;
+    }).join("");
+    if (rows) {
+      $("live").innerHTML = `<div class="tablewrap"><table>
+        <tr><th>time</th><th>api</th><th>msgs</th><th>compact/omit</th><th>saved</th><th>scoring</th><th>session</th></tr>
+        ${rows}</table></div>`;
+    }
+    // Newest request auto-fills the detail panels (summary, savings, latency,
+    // reliability, provenance, decisions) — same renderer the buttons use.
+    const newest = requests[0];
+    if (newest && newest.debug && newest.run_id !== lastRenderedRun) {
+      lastRenderedRun = newest.run_id;
+      renderDebug(newest.debug);
+    }
+  } catch (e) { /* gateway briefly unreachable — keep last view */ }
+}
+refreshLive();
+setInterval(refreshLive, 2500);
+</script>
+</body>
+</html>
