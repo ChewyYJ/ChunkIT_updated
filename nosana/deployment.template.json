@@ -1,0 +1,50 @@
+{
+  "name": "chunkit-nosana-scorer",
+  "market": "REPLACE_WITH_SELECTED_MARKET_ADDRESS",
+  "replicas": 1,
+  "timeout": 120,
+  "strategy": "SIMPLE-EXTEND",
+  "job_definition": {
+    "version": "0.1",
+    "type": "container",
+    "meta": { "trigger": "api" },
+    "ops": [
+      {
+        "id": "chunkit-reranker",
+        "type": "container/run",
+        "args": {
+          "image": "docker.io/perynnneo/chunkit-nosana-scorer:hackathon",
+          "gpu": true,
+          "env": {
+            "MODEL_NAME": "/models/reranker",
+            "SCORER_TOKEN": "REPLACE_WITH_RANDOM_APPLICATION_TOKEN",
+            "BATCH_SIZE": "32",
+            "MAX_LENGTH": "512",
+            "MAX_ITEMS": "128"
+          },
+          "resources": [
+            {
+              "type": "HF",
+              "repo": "cross-encoder/ms-marco-MiniLM-L6-v2",
+              "target": "/models/reranker"
+            }
+          ],
+          "expose": [
+            {
+              "port": 8000,
+              "health_checks": [
+                {
+                  "type": "http",
+                  "path": "/health",
+                  "method": "GET",
+                  "expected_status": 200,
+                  "continuous": true
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
