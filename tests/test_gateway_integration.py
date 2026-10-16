@@ -31,6 +31,10 @@ def _long_messages():
 def gateway(tmp_path, monkeypatch):
     """TestClient with isolated DB, scorer env config, and a stubbed upstream."""
     monkeypatch.setattr(store, "DB_PATH", str(tmp_path / "sessions.db"))
+    # Existing pipeline tests exercise a consciously unauthenticated local server.
+    # Production authentication has its own independent boundary tests.
+    monkeypatch.delenv("VERCEL", raising=False)
+    monkeypatch.setenv("CHUNKIT_AUTH_DISABLED", "true")
     monkeypatch.setenv("NOSANA_ENABLED", "true")
     monkeypatch.setenv("NOSANA_SCORER_URL", SCORER)
     monkeypatch.setenv("NOSANA_SCORER_TOKEN", "test-token")
@@ -215,7 +219,7 @@ def test_health_and_dashboard(gateway):
     client, _ = gateway
     health = client.get("/health").json()
     assert health["status"] == "ok"
-    assert "daytona" in health  # Person 2 worker-pool status is reported too
+    assert health == {"status": "ok"}  # Public health must not reveal worker IDs.
     page = client.get("/dashboard")
     assert page.status_code == 200
     assert "ChunkIT" in page.text

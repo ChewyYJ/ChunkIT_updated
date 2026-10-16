@@ -355,6 +355,9 @@ _POOL = DaytonaWorkerPool()
 
 
 def daytona_remote_enabled() -> bool:
+    # Sandbox lifecycle management does not belong to an autoscaling function.
+    if os.getenv("VERCEL"):
+        return False
     backend = os.getenv("DAYTONA_BACKEND", "local").lower()
     return backend in {"remote", "daytona"} and bool(os.getenv("DAYTONA_API_KEY"))
 

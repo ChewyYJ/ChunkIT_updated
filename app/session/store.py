@@ -7,15 +7,23 @@ from datetime import datetime, timezone
 
 from shared.schemas import ContextBlock, ContextUnit
 
-DB_DIR = os.getenv("CHUNKIT_DB_DIR", "data")
+DB_DIR = os.getenv("CHUNKIT_DB_DIR", "/tmp/chunkit" if os.getenv("VERCEL") else "data")
 DB_PATH = os.getenv("CHUNKIT_DB_PATH", os.path.join(DB_DIR, "sessions.db"))
+
+
+def storage_status() -> dict:
+    ephemeral = bool(os.getenv("VERCEL")) or os.path.abspath(DB_PATH).startswith("/tmp/")
+    return {"mode": "ephemeral" if ephemeral else "local", "persistent": not ephemeral,
+            "notice": ("Context is temporary on this server. It may reset between requests, restarts or deployments. "
+                       "Session totals belong to the current server instance." if ephemeral else
+                       "Context is stored in a local SQLite file. Session totals reset when the server restarts.")}
 
 
 def _connect() -> sqlite3.Connection:
     parent = os.path.dirname(DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    return sqlite3.connect(DB_PATH)
+    return sqlite3.connect(DB_PATH, timeout=15)
 
 
 def init_db() -> None:

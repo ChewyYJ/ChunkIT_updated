@@ -1,4 +1,7 @@
 .env
+.env.*
+!.env.example
+.vercel/
 __pycache__/
 *.pyc
 .venv/
@@ -7,3 +10,5 @@ venv/
 data/
 .DS_Store
 evals/results/
+.vercel
+.env*

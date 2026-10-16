@@ -1,0 +1,3 @@
+# Optional for long-lived local/container deployments. Disabled on Vercel.
+-r requirements.txt
+daytona-sdk==0.224.1

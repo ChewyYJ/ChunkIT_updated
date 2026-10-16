@@ -32,6 +32,7 @@ import os
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 
+from app.auth import key_matches
 from app.daytona.client import get_last_prepare_report, prepare_context_blocks
 from app.gateway.activity import record as record_activity
 from app.gateway.message_parser import has_pinned_keyword
@@ -54,6 +55,7 @@ DEFAULT_ANTHROPIC_TARGET_TOKENS = int(os.getenv("CHUNKIT_ANTHROPIC_TARGET_TOKENS
 _DROP_HEADERS = {
     "host", "content-length", "connection", "keep-alive", "transfer-encoding",
     "accept-encoding", "proxy-authorization", "proxy-connection", "te", "upgrade",
+    "cookie", "x-chunkit-api-key",
 }
 
 # Messages carrying these blocks are pinned outright: rewriting them risks
@@ -72,6 +74,13 @@ def _forward_headers(request: Request) -> dict[str, str]:
         for name, value in request.headers.items()
         if name.lower() not in _DROP_HEADERS
     }
+    authorization = request.headers.get("authorization", "")
+    scheme, _, credential = authorization.partition(" ")
+    if scheme.lower() == "bearer" and key_matches(credential):
+        # Strip gateway credentials even when another header authenticated first.
+        headers.pop("authorization", None)
+    if key_matches(request.headers.get("x-api-key", "")):
+        headers.pop("x-api-key", None)
     # Force identity: httpx would otherwise merge its default
     # "accept-encoding: gzip, deflate" into the upstream request, and the
     # streaming relay forwards raw bytes it must be able to prepend to.

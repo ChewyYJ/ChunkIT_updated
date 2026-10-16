@@ -21,6 +21,7 @@
     --mono: "Cascadia Code", "JetBrains Mono", Consolas, monospace;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
+  [hidden] { display: none !important; }
   body {
     background: var(--bg);
     background-image: radial-gradient(ellipse 80% 50% at 50% -10%, rgba(34,197,94,.10), transparent);
@@ -122,6 +123,29 @@
   .tile .tv { font-family: var(--mono); font-weight: 800; font-size: 26px; color: var(--green-bright); font-variant-numeric: tabular-nums; }
   .tile .ts { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
   .spark { display: block; width: 100%; height: 48px; }
+  :focus-visible { outline: 2px solid var(--green-bright); outline-offset: 4px; }
+  .auth-gate { max-width: 470px; margin: 9vh auto 0; padding: 30px; background: linear-gradient(145deg, #101b13, var(--panel)); border: 1px solid #25442f; border-radius: 18px; box-shadow: 0 24px 80px #0005; }
+  .auth-eyebrow { color: var(--green-bright); font: 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; margin-bottom: 16px; }
+  .auth-gate h2 { font-size: clamp(24px, 5vw, 30px); letter-spacing: -.03em; margin-bottom: 12px; }
+  .auth-gate p { color: #a6b7ad; font-size: 14px; line-height: 1.65; }
+  .auth-gate form { margin-top: 22px; }
+  .auth-gate label { display: block; color: #bac9c0; font-size: 13px; margin-bottom: 8px; }
+  .auth-gate input { display: block; width: 100%; padding: 13px; margin-bottom: 14px; border: 1px solid #2c4535; border-radius: 8px; background: #050a07; color: var(--white); font: 15px var(--mono); }
+  .auth-gate form button { width: 100%; min-height: 44px; }
+  .auth-gate .auth-note { margin-top: 18px; color: var(--muted); font-size: 12px; }
+  .auth-gate .auth-status { margin-top: 16px; min-height: 20px; font-size: 13px; }
+  .auth-gate .auth-status.err { color: var(--red); }
+  .auth-gate #authRetry { margin-top: 12px; }
+  .connection-bar { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 16px; }
+  .connection-label { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+  .gateway-origin { color: var(--muted); font: 11px var(--mono); overflow-wrap: anywhere; }
+  .gateway-notice { padding: 13px 16px; border: 1px solid #294233; border-radius: 10px; background: #0c150f; margin-bottom: 14px; font-size: 13px; line-height: 1.6; color: #a6b7ad; }
+  .gateway-notice.warn { border-color: #655928; background: #17160c; color: #e1d59b; }
+  .gateway-notice strong { display: block; color: var(--white); margin-bottom: 3px; }
+  .gateway-notice button { margin-top: 10px; }
+  .storage-notice { margin: -3px 2px 18px; color: #a6b7ad; font-size: 12px; line-height: 1.6; }
+  .connection-bar button { flex-shrink: 0; min-height: 40px; }
+  @media (max-width: 480px) { .auth-gate { padding: 24px; margin-top: 5vh; } .grid { grid-template-columns: minmax(0, 1fr); } }
 </style>
 </head>
 <body>
@@ -131,21 +155,42 @@
 </header>
 <div class="tagline">Context-compression gateway — compress, score, budget, retrieve</div>
 
+<section class="auth-gate" id="authGate" aria-labelledby="authHeading">
+  <div class="auth-eyebrow">Private gateway</div>
+  <h2 id="authHeading">Your context. Your gateway.</h2>
+  <p id="authIntro">Checking your session…</p>
+  <form id="loginForm" hidden>
+    <label for="accessKey">Gateway access key</label>
+    <input type="password" id="accessKey" name="api_key" required autocomplete="off" spellcheck="false" autocapitalize="none" aria-describedby="authNote authStatus">
+    <button type="submit" id="loginButton">Open dashboard</button>
+  </form>
+  <p class="auth-status" id="authStatus" role="status" aria-live="polite"></p>
+  <button class="secondary" id="authRetry" hidden>Retry connection</button>
+  <p class="auth-note" id="authNote">Your access key is sent only to this gateway. It is not saved in browser storage.</p>
+  <noscript><p>JavaScript is required to sign in and use the live dashboard.</p></noscript>
+</section>
+
+<main id="dashboard" hidden>
+<div class="connection-bar">
+  <div class="connection-label"><span class="badge ok">Connected</span><span class="gateway-origin" id="gatewayOrigin"></span><span class="badge mid" id="trafficStatus">Live traffic</span></div>
+  <button class="secondary" id="logoutButton">Log out</button>
+</div>
+<section class="gateway-notice" id="providerNotice" aria-live="polite"><strong id="providerTitle">Checking model configuration…</strong><span id="providerDetail">Requests will be available once the provider is ready.</span><br id="configRetryBreak" hidden><button class="secondary" id="configRetry" hidden>Retry configuration</button></section>
+<p class="storage-notice" id="storageNotice" hidden></p>
 <div class="controls">
-  <label>Gateway <input type="text" id="gateway" placeholder="(same origin)" value=""></label>
   <label>Target tokens <input type="number" id="target" value="400" min="1"></label>
   <label>Session <input type="text" id="session" placeholder="(per request)" style="width:120px"></label>
   <span class="toggle"><input type="checkbox" id="compression" checked> compression</span>
   <span class="toggle"><input type="checkbox" id="streaming"> stream</span>
   <button class="secondary" id="loadSample">Load sample trace</button>
-  <button id="send">Send request</button>
-  <button class="secondary" id="compare">Run baseline compare</button>
+  <button id="send" disabled>Send request</button>
+  <button class="secondary" id="compare" disabled>Run baseline compare</button>
 </div>
 <div class="status" id="status">Ready. Load the sample trace or paste an OpenAI-style messages array below.</div>
 <textarea id="messages" spellcheck="false" placeholder='[{"role":"user","content":"..."}]'></textarea>
 
 <div class="panel" style="margin-bottom: 14px;">
-  <h2>Session totals &mdash; since gateway start</h2>
+  <h2>Session totals &mdash; current server instance</h2>
   <div class="tiles" id="tiles"><div class="empty">No traffic yet this session.</div></div>
   <div id="spark" style="margin-top: 10px;"></div>
 </div>
@@ -169,7 +214,7 @@
   </div>
   <div class="panel" style="grid-column: 1 / -1;">
     <h2>Live traffic &mdash; agents passing through the gateway</h2>
-    <div id="live" class="empty">Waiting for traffic&hellip; point any agent (Claude Code via <span style="font-family:var(--mono)">ANTHROPIC_BASE_URL</span>, OpenAI SDK via <span style="font-family:var(--mono)">base_url</span>) at this gateway and requests appear here automatically.</div>
+    <div id="live" class="empty">Authenticated gateway requests appear here automatically.</div>
   </div>
   <div class="panel" style="grid-column: 1 / -1;">
     <h2>Compression provenance &mdash; per block</h2>
@@ -184,12 +229,217 @@
     <div id="quality" class="empty">&mdash;</div>
   </div>
 </div>
+</main>
 
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
 const answerOf = (data) => (((data.choices || [])[0] || {}).message || {}).content ?? data.content ?? "";
 const esc = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+let authenticated = false;
+let gatewayConfig = null;
+let sessionController = null;
+let sessionEpoch = 0;
+let pollTimer = null;
+let requestBusy = false;
+let logoutUnconfirmed = false;
+$("gatewayOrigin").textContent = location.origin;
+
+function updateRequestControls() {
+  const canSend = authenticated && gatewayConfig?.provider?.configured === true;
+  $("send").disabled = !canSend || requestBusy;
+  $("compare").disabled = !canSend || requestBusy;
+  ["loadSample", "messages", "target", "session", "compression", "streaming"].forEach(id => {
+    $(id).disabled = !authenticated || requestBusy;
+  });
+}
+
+function authMessage(message, isError = false) {
+  $("authStatus").textContent = message;
+  $("authStatus").className = "auth-status" + (isError ? " err" : "");
+}
+
+function lockDashboard(message = "", allowLogin = true) {
+  authenticated = false;
+  gatewayConfig = null;
+  sessionEpoch += 1;
+  sessionController?.abort();
+  sessionController = null;
+  clearTimeout(pollTimer);
+  pollTimer = null;
+  requestBusy = false;
+  lastRenderedRun = null;
+  $("dashboard").hidden = true;
+  $("authGate").hidden = false;
+  $("loginForm").hidden = !allowLogin;
+  $("authRetry").hidden = allowLogin;
+  $("authIntro").textContent = allowLogin
+    ? "Enter your access key to use the live gateway and view its activity."
+    : "The dashboard is unavailable until the gateway is ready.";
+  $("accessKey").value = "";
+  $("messages").value = "";
+  $("session").value = "";
+  ["summary", "savings", "latency", "reliability", "provenance", "decisions", "quality", "tiles", "live"].forEach(id => {
+    $(id).textContent = "No activity in this view yet.";
+  });
+  $("spark").replaceChildren();
+  $("storageNotice").hidden = true;
+  authMessage(message, !!message);
+  updateRequestControls();
+}
+
+async function responseMessage(response) {
+  const data = await response.json().catch(() => ({}));
+  return typeof data.detail === "string" ? data.detail : `Request failed (${response.status}). Please try again.`;
+}
+
+async function apiFetch(path, options = {}) {
+  if (!authenticated || !sessionController) throw new Error("Sign in to use the gateway.");
+  const url = new URL(path, location.origin);
+  if (url.origin !== location.origin) throw new Error("Gateway requests must stay on this origin.");
+  const epoch = sessionEpoch;
+  const response = await fetch(url.pathname + url.search, {
+    ...options, credentials: "same-origin", cache: "no-store", redirect: "error", signal: sessionController.signal,
+  });
+  if (epoch !== sessionEpoch || !authenticated) throw new DOMException("Session ended", "AbortError");
+  if (response.status === 401) {
+    lockDashboard("Your session expired. Enter your access key to continue.");
+    $("accessKey").focus();
+    throw new Error("Your session expired. Please sign in again.");
+  }
+  return response;
+}
+
+async function refreshConfiguration() {
+  const epoch = sessionEpoch;
+  gatewayConfig = null;
+  updateRequestControls();
+  $("configRetry").hidden = true;
+  $("configRetryBreak").hidden = true;
+  $("providerTitle").textContent = "Checking model configuration…";
+  try {
+    const response = await apiFetch("/config");
+    if (!response.ok) throw new Error(await responseMessage(response));
+    const config = await response.json();
+    if (epoch !== sessionEpoch || !authenticated) return;
+    if (typeof config.provider?.configured !== "boolean" || !config.storage) throw new Error("The gateway returned incomplete configuration.");
+    gatewayConfig = config;
+    $("providerNotice").classList.toggle("warn", !config.provider.configured);
+    $("providerTitle").textContent = config.provider.configured ? "Live model ready" : "Model provider not configured";
+    $("providerDetail").textContent = config.provider.configured
+      ? `${config.provider.name} · ${config.provider.model}. Requests use the live provider.`
+      : "Configure a model provider on the server to enable requests and baseline comparisons. No model answers are simulated.";
+    $("configRetry").textContent = "Recheck provider";
+    $("configRetry").hidden = config.provider.configured;
+    $("configRetryBreak").hidden = config.provider.configured;
+    $("storageNotice").textContent = config.storage.mode === "ephemeral"
+      ? "Temporary storage: context may reset between requests/deployments. Activity and totals belong to the current server instance."
+      : config.storage.notice || "Context is stored on this server. Activity and totals belong to the current server instance.";
+    $("storageNotice").hidden = false;
+  } catch (error) {
+    if (epoch !== sessionEpoch || !authenticated || error.name === "AbortError") return;
+    $("providerNotice").classList.add("warn");
+    $("providerTitle").textContent = "Model configuration unavailable";
+    $("providerDetail").textContent = error.message + " Retry configuration to enable requests.";
+    $("configRetry").textContent = "Retry configuration";
+    $("configRetry").hidden = false;
+    $("configRetryBreak").hidden = false;
+  } finally {
+    if (epoch === sessionEpoch) updateRequestControls();
+  }
+}
+
+async function openDashboard() {
+  sessionController?.abort();
+  clearTimeout(pollTimer);
+  sessionEpoch += 1;
+  authenticated = true;
+  sessionController = new AbortController();
+  $("authGate").hidden = true;
+  $("dashboard").hidden = false;
+  $("accessKey").value = "";
+  $("logoutButton").disabled = false;
+  setStatus("Ready. Load the sample trace or paste an OpenAI-style messages array below.");
+  await refreshConfiguration();
+  if (authenticated) startPolling();
+}
+
+async function checkSession() {
+  $("authRetry").disabled = true;
+  $("loginForm").hidden = true;
+  authMessage("Checking your session…");
+  try {
+    const response = await fetch("/auth/status", {credentials: "same-origin", cache: "no-store", redirect: "error"});
+    if (!response.ok) throw new Error(await responseMessage(response));
+    const state = await response.json();
+    if (state.authenticated === true || state.required === false) {
+      await openDashboard();
+    } else if (state.required === true && state.configured === false) {
+      lockDashboard("Gateway access is not configured yet. Ask the owner to finish setup, then retry.", false);
+    } else if (state.required === true && state.configured === true) {
+      lockDashboard();
+    } else {
+      throw new Error("The gateway returned an invalid session status.");
+    }
+  } catch (error) {
+    lockDashboard("Could not connect to the gateway. " + error.message, false);
+  } finally {
+    $("authRetry").disabled = false;
+  }
+}
+
+$("loginForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  if ($("loginButton").disabled) return;
+  $("loginButton").disabled = true;
+  $("loginButton").textContent = "Opening…";
+  authMessage("Signing in…");
+  try {
+    // The key exists only in this request body; authentication thereafter uses
+    // the server's HttpOnly cookie, never a JavaScript token or browser storage.
+    const pending = fetch("/auth/login", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({api_key: $("accessKey").value}),
+      credentials: "same-origin", cache: "no-store", redirect: "error",
+    });
+    $("accessKey").value = "";
+    const response = await pending;
+    if (!response.ok) throw new Error(response.status === 401 ? "That access key was not accepted. Please try again." : await responseMessage(response));
+    const state = await response.json();
+    if (state.authenticated !== true) throw new Error("Sign-in was not confirmed. Please try again.");
+    await openDashboard();
+  } catch (error) {
+    authMessage(error.message, true);
+    $("accessKey").focus();
+  } finally {
+    $("accessKey").value = "";
+    $("loginButton").disabled = false;
+    $("loginButton").textContent = "Open dashboard";
+  }
+});
+
+async function logoutDashboard() {
+  $("logoutButton").disabled = true;
+  lockDashboard("", false);
+  $("authRetry").hidden = true;
+  authMessage("Signing out…");
+  try {
+    const response = await fetch("/auth/logout", {method: "POST", credentials: "same-origin", cache: "no-store", redirect: "error"});
+    if (!response.ok) throw new Error(await responseMessage(response));
+    logoutUnconfirmed = false;
+    $("authRetry").textContent = "Retry connection";
+    lockDashboard();
+    authMessage("You are signed out.");
+    $("accessKey").focus();
+  } catch (error) {
+    logoutUnconfirmed = true;
+    lockDashboard("The dashboard is locked, but sign-out could not be confirmed. Retry to finish signing out.", false);
+    $("authRetry").textContent = "Retry sign-out";
+  }
+}
+$("logoutButton").addEventListener("click", logoutDashboard);
+$("authRetry").addEventListener("click", () => logoutUnconfirmed ? logoutDashboard() : checkSession());
+$("configRetry").addEventListener("click", refreshConfiguration);
 
 const SAMPLE_TRACE = [
   {
@@ -287,34 +537,35 @@ function requestBody(compressionEnabled, stream) {
   return body;
 }
 
-function gatewayBase() { return $("gateway").value.trim().replace(/\/+$/, ""); }
-
 async function callGateway(compressionEnabled) {
-  const resp = await fetch(`${gatewayBase()}/v1/chat/completions`, {
+  const epoch = sessionEpoch;
+  const resp = await apiFetch("/v1/chat/completions", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(requestBody(compressionEnabled, false)),
   });
+  if (!resp.ok) throw new Error(await responseMessage(resp));
   const data = await resp.json();
-  if (!resp.ok) throw new Error(`gateway ${resp.status}: ${JSON.stringify(data.detail || data)}`);
+  if (epoch !== sessionEpoch || !authenticated) throw new DOMException("Session ended", "AbortError");
   return data;
 }
 
 async function callGatewayStreaming(compressionEnabled, onDebug, onDelta) {
-  const resp = await fetch(`${gatewayBase()}/v1/chat/completions`, {
+  const epoch = sessionEpoch;
+  const resp = await apiFetch("/v1/chat/completions", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(requestBody(compressionEnabled, true)),
   });
   if (!resp.ok) {
-    const data = await resp.json().catch(() => ({}));
-    throw new Error(`gateway ${resp.status}: ${JSON.stringify(data.detail || data)}`);
+    throw new Error(await responseMessage(resp));
   }
   const reader = resp.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "", content = "", debug = null;
   for (;;) {
     const {done, value} = await reader.read();
+    if (epoch !== sessionEpoch || !authenticated) throw new DOMException("Session ended", "AbortError");
     if (done) break;
     buffer += decoder.decode(value, {stream: true});
     let idx;
@@ -427,8 +678,10 @@ function render(data) {
 }
 
 $("send").onclick = async () => {
-  const btn = $("send");
-  btn.disabled = true;
+  if (requestBusy || !authenticated || !gatewayConfig?.provider?.configured) return;
+  const epoch = sessionEpoch;
+  requestBusy = true;
+  updateRequestControls();
   try {
     if ($("streaming").checked) {
       setStatus("Streaming through the gateway…");
@@ -447,15 +700,20 @@ $("send").onclick = async () => {
       setStatus(`Done — score source: ${data.debug.score_source}, saved ${data.debug.savings_percent}% of context tokens.`);
     }
   } catch (err) {
-    setStatus(err.message, true);
+    if (epoch === sessionEpoch && authenticated) {
+      $("quality").querySelectorAll(".cursor").forEach(cursor => cursor.remove());
+      setStatus(err.message, true);
+    }
   } finally {
-    btn.disabled = false;
+    if (epoch === sessionEpoch) { requestBusy = false; updateRequestControls(); }
   }
 };
 
 $("compare").onclick = async () => {
-  const btn = $("compare");
-  btn.disabled = true;
+  if (requestBusy || !authenticated || !gatewayConfig?.provider?.configured) return;
+  const epoch = sessionEpoch;
+  requestBusy = true;
+  updateRequestControls();
   try {
     setStatus("Baseline compare: running full-context request…");
     const full = await callGateway(false);
@@ -487,9 +745,9 @@ $("compare").onclick = async () => {
       : "";
     setStatus(`Baseline compare complete.${promptSaved}`);
   } catch (err) {
-    setStatus(err.message, true);
+    if (epoch === sessionEpoch && authenticated) setStatus(err.message, true);
   } finally {
-    btn.disabled = false;
+    if (epoch === sessionEpoch) { requestBusy = false; updateRequestControls(); }
   }
 };
 
@@ -517,7 +775,11 @@ function sparkline(history) {
 }
 
 function renderTotals(t) {
-  if (!t || !t.requests) return;
+  if (!t || !t.requests) {
+    $("tiles").textContent = "No traffic recorded by this server instance.";
+    $("spark").replaceChildren();
+    return;
+  }
   const failNote = t.fail_opens
     ? ` &middot; <span style="color:var(--red)">${fmt(t.fail_opens)} fail-open</span>` : "";
   $("tiles").innerHTML = `
@@ -539,10 +801,15 @@ function apiBadge(api) {
     : '<span class="badge ok">OPENAI</span>';
 }
 async function refreshLive() {
+  if (!authenticated) return;
+  const epoch = sessionEpoch;
   try {
-    const resp = await fetch(`${gatewayBase()}/activity`);
-    if (!resp.ok) return;
+    const resp = await apiFetch("/activity");
+    if (!resp.ok) throw new Error("Traffic is temporarily unavailable.");
     const data = await resp.json();
+    if (epoch !== sessionEpoch || !authenticated) return;
+    $("trafficStatus").textContent = "Live traffic";
+    $("trafficStatus").className = "badge mid";
     renderTotals(data.totals);
     const requests = data.requests || [];
     const rows = requests.slice(0, 20).map((r, i) => {
@@ -563,6 +830,8 @@ async function refreshLive() {
       $("live").innerHTML = `<div class="tablewrap"><table>
         <tr><th>time</th><th>api</th><th>msgs</th><th>compact/omit</th><th>saved</th><th>scoring</th><th>session</th></tr>
         ${rows}</table></div>`;
+    } else {
+      $("live").textContent = "No traffic recorded by this server instance.";
     }
     // Newest request auto-fills the detail panels (summary, savings, latency,
     // reliability, provenance, decisions) — same renderer the buttons use.
@@ -571,10 +840,22 @@ async function refreshLive() {
       lastRenderedRun = newest.run_id;
       renderDebug(newest.debug);
     }
-  } catch (e) { /* gateway briefly unreachable — keep last view */ }
+  } catch (error) {
+    if (epoch === sessionEpoch && authenticated && error.name !== "AbortError") {
+      $("trafficStatus").textContent = "Traffic reconnecting…";
+      $("trafficStatus").className = "badge warn";
+    }
+  }
 }
-refreshLive();
-setInterval(refreshLive, 2500);
+async function startPolling() {
+  const epoch = sessionEpoch;
+  clearTimeout(pollTimer);
+  if (!authenticated) return;
+  await refreshLive();
+  if (authenticated && epoch === sessionEpoch) pollTimer = setTimeout(startPolling, 2500);
+}
+updateRequestControls();
+checkSession();
 </script>
 </body>
 </html>
